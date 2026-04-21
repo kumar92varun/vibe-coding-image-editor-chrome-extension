@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "PixelForge",
+  "version": "1.0.0",
+  "description": "A powerful in-browser image editor. Click to open in a new tab.",
+  "permissions": [],
+  "action": {
+    "default_title": "Open PixelForge"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
