@@ -1,4 +1,4 @@
-/* PixelForge — main editor controller */
+/* LocalPixel — main editor controller */
 (function () {
   'use strict';
 
@@ -12,7 +12,7 @@
   let hasChanges = false;
 
   // Canvas-mode tools require explicit activate/deactivate
-  const CANVAS_TOOLS = new Set(['crop', 'text', 'draw', 'shapes']);
+  const CANVAS_TOOLS = new Set(['crop', 'text', 'draw', 'shapes', 'blur']);
 
   // ===== DOM REFS =====
   const dropzone        = document.getElementById('dropzone');
@@ -124,6 +124,16 @@
 
       canvas.on('object:modified', () => { hasChanges = true; History.push(canvas); });
       canvas.on('path:created',    () => { hasChanges = true; History.push(canvas); });
+      canvas.on('selection:created', (e) => {
+        if (activeTool === 'shapes' && e.selected && e.selected[0]) {
+          _syncSidebarToShape(e.selected[0]);
+        }
+      });
+      canvas.on('selection:updated', (e) => {
+        if (activeTool === 'shapes' && e.selected && e.selected[0]) {
+          _syncSidebarToShape(e.selected[0]);
+        }
+      });
     }, { crossOrigin: 'anonymous' });
   }
 
@@ -146,15 +156,43 @@
     currentZoom = scale;
   }
 
+  function _applyCrop(src) {
+    fabric.Image.fromURL(src, (img) => {
+      canvas.remove(fabricImage);
+      _fitImageToCanvas(img);
+      img.set({ selectable: false, evented: false });
+      canvas.insertAt(img, 0);
+      fabricImage = img;
+      canvas.renderAll();
+      hasChanges = true;
+      History.push(canvas);
+      ScaleTool.init(fabricImage);
+      _populateScaleInputs();
+      _updateStatus();
+    }, { crossOrigin: 'anonymous' });
+  }
+
   // ===== TOOL BUTTON WIRING =====
-  // All tool buttons send clicks here; only CANVAS_TOOLS have activation logic.
   function _bindToolButtons() {
     document.querySelectorAll('.tool-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const toolName = btn.dataset.tool;
-        if (!canvas || !toolName) return;
-        if (CANVAS_TOOLS.has(toolName)) _toggleCanvasTool(toolName);
-        // Non-canvas tool buttons have no toggle behavior — panels are always visible
+        const toolItem = btn.closest('.tool-item');
+
+        if (toolName === 'history') return;
+
+        if (canvas && CANVAS_TOOLS.has(toolName)) {
+          // Sync panel open state with activation state
+          if (activeTool === toolName) {
+            toolItem?.classList.remove('open');
+          } else {
+            toolItem?.classList.add('open');
+          }
+          _toggleCanvasTool(toolName);
+        } else {
+          // All other tools: simple toggle
+          toolItem?.classList.toggle('open');
+        }
       });
     });
   }
@@ -174,12 +212,12 @@
       if (!fabricImage) { _deactivateCanvasMode(); return; }
       canvasArea.classList.add('crop-mode');
       CropTool.activate(canvas, fabricImage, (croppedDataURL) => {
-        _initEditor(croppedDataURL);
         _deactivateCanvasMode();
+        _applyCrop(croppedDataURL);
       });
     } else if (toolName === 'text') {
       if (fabricImage) { fabricImage.selectable = false; fabricImage.evented = false; }
-      TextTool.activate(canvas);
+      TextTool.activate(canvas, () => _deactivateCanvasMode());
     } else if (toolName === 'draw') {
       if (fabricImage) { fabricImage.selectable = false; fabricImage.evented = false; }
       const color = document.getElementById('drawColor').value;
@@ -190,6 +228,15 @@
       if (fabricImage) { fabricImage.selectable = false; fabricImage.evented = false; }
       ShapesTool.activate(canvas);
       canvasArea.classList.add('shapes-mode');
+    } else if (toolName === 'blur') {
+      if (!fabricImage) { _deactivateCanvasMode(); return; }
+      fabricImage.selectable = false; fabricImage.evented = false;
+      BlurBrushTool.activate(canvas, fabricImage, (newImg) => {
+        fabricImage = newImg;
+        hasChanges  = true;
+        History.push(canvas);
+      });
+      canvasArea.classList.add('blur-mode');
     }
   }
 
@@ -197,7 +244,8 @@
     if (CropTool.isActive())   { CropTool.cancel(); canvasArea.classList.remove('crop-mode'); }
     if (TextTool.isActive())   TextTool.deactivate();
     if (DrawTool.isActive())   { DrawTool.deactivate(); canvasArea.classList.remove('draw-mode'); }
-    if (ShapesTool.isActive()) { ShapesTool.deactivate(); canvasArea.classList.remove('shapes-mode'); }
+    if (ShapesTool.isActive())    { ShapesTool.deactivate();    canvasArea.classList.remove('shapes-mode'); }
+    if (BlurBrushTool.isActive()) { BlurBrushTool.deactivate(); canvasArea.classList.remove('blur-mode'); }
 
     if (fabricImage) { fabricImage.selectable = false; fabricImage.evented = false; }
 
@@ -210,13 +258,6 @@
   // ===== TRANSFORM TOOLS =====
   function _bindTransformTools() {
     // Crop
-    document.querySelectorAll('[data-ratio]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-ratio]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        CropTool.setRatio(btn.dataset.ratio);
-      });
-    });
     document.getElementById('applyCropBtn').addEventListener('click', () => CropTool.applyAndCrop());
     document.getElementById('cancelCropBtn').addEventListener('click', () => {
       CropTool.cancel();
@@ -227,14 +268,6 @@
     });
 
     // Rotate
-    document.getElementById('rotateLeftBtn').addEventListener('click', () => {
-      if (!fabricImage) return;
-      RotateTool.rotate90(fabricImage, canvas, -1, () => { hasChanges = true; History.push(canvas); });
-    });
-    document.getElementById('rotateRightBtn').addEventListener('click', () => {
-      if (!fabricImage) return;
-      RotateTool.rotate90(fabricImage, canvas, 1, () => { hasChanges = true; History.push(canvas); });
-    });
     const rotateSlider   = document.getElementById('rotateSlider');
     const rotateAngleVal = document.getElementById('rotateAngleVal');
     rotateSlider.addEventListener('input', () => {
@@ -246,56 +279,43 @@
     rotateSlider.addEventListener('change', () => { hasChanges = true; History.push(canvas); });
 
     // Scale
-    const scaleInput       = document.getElementById('scaleInput');
-    const scaleVal         = document.getElementById('scaleVal');
     const scaleWidthInput  = document.getElementById('scaleWidthInput');
     const scaleHeightInput = document.getElementById('scaleHeightInput');
     const lockAspect       = document.getElementById('lockAspect');
 
-    document.getElementById('scaleDownBtn').addEventListener('click', () => {
-      scaleInput.value = Math.max(10, parseInt(scaleInput.value) - 10);
-      scaleVal.textContent = scaleInput.value + '%';
-    });
-    document.getElementById('scaleUpBtn').addEventListener('click', () => {
-      scaleInput.value = Math.min(500, parseInt(scaleInput.value) + 10);
-      scaleVal.textContent = scaleInput.value + '%';
-    });
-    scaleInput.addEventListener('input', () => {
-      scaleVal.textContent = scaleInput.value + '%';
-    });
-
-    // Width input — when user types width, auto-calc height if aspect locked
+    // Width input — when user types width, auto-calc height if aspect locked + live preview
     scaleWidthInput.addEventListener('input', () => {
       const w = parseInt(scaleWidthInput.value);
-      if (!w || !fabricImage) return;
+      if (!w || w < 1 || !fabricImage) return;
       if (lockAspect.checked) {
         const ar = ScaleTool.getAspectRatio();
         scaleHeightInput.value = Math.round(w / ar);
       }
+      const h = parseInt(scaleHeightInput.value);
+      if (h > 0) { ScaleTool.applyByDimensions(fabricImage, canvas, w, h, lockAspect.checked); _resizeCanvasToImage(); }
     });
 
-    // Height input — when user types height, auto-calc width if aspect locked
+    // Height input — when user types height, auto-calc width if aspect locked + live preview
     scaleHeightInput.addEventListener('input', () => {
       const h = parseInt(scaleHeightInput.value);
-      if (!h || !fabricImage) return;
+      if (!h || h < 1 || !fabricImage) return;
       if (lockAspect.checked) {
         const ar = ScaleTool.getAspectRatio();
         scaleWidthInput.value = Math.round(h * ar);
       }
+      const w = parseInt(scaleWidthInput.value);
+      if (w > 0) { ScaleTool.applyByDimensions(fabricImage, canvas, w, h, lockAspect.checked); _resizeCanvasToImage(); }
     });
 
     document.getElementById('applyScaleBtn').addEventListener('click', () => {
       if (!fabricImage) return;
       const w = parseInt(scaleWidthInput.value);
       const h = parseInt(scaleHeightInput.value);
-      const pct = parseInt(scaleInput.value);
       const lock = lockAspect.checked;
 
-      // Dimension inputs take priority if filled
       if (w > 0 && h > 0) {
         ScaleTool.applyByDimensions(fabricImage, canvas, w, h, lock);
-      } else {
-        ScaleTool.applyByPercent(fabricImage, canvas, pct, lock);
+        _resizeCanvasToImage();
       }
       hasChanges = true;
       History.push(canvas);
@@ -320,10 +340,19 @@
   function _populateScaleInputs() {
     if (!fabricImage) return;
     const state = ScaleTool.getCurrentState(fabricImage);
-    document.getElementById('scaleInput').value     = state.percent;
-    document.getElementById('scaleVal').textContent = state.percent + '%';
     document.getElementById('scaleWidthInput').value  = state.width;
     document.getElementById('scaleHeightInput').value = state.height;
+  }
+
+  function _resizeCanvasToImage() {
+    if (!fabricImage) return;
+    const newW = Math.round(fabricImage.width  * fabricImage.scaleX);
+    const newH = Math.round(fabricImage.height * fabricImage.scaleY);
+    canvas.setWidth(newW);
+    canvas.setHeight(newH);
+    canvasWrapper.style.width  = newW + 'px';
+    canvasWrapper.style.height = newH + 'px';
+    canvas.renderAll();
   }
 
   // ===== FILTER TOOLS =====
@@ -331,13 +360,6 @@
     _bindFilterSlider('brightnessSlider', 'brightnessVal', 'brightness', v => v, '');
     _bindFilterSlider('contrastSlider',   'contrastVal',   'contrast',   v => v, '');
     _bindFilterSlider('saturationSlider', 'saturationVal', 'saturation', v => v, '');
-    _bindFilterSlider('blurSlider',       'blurVal',       'blur',       v => v, 'px');
-
-    document.getElementById('sharpenToggle').addEventListener('change', (e) => {
-      Filters.set('sharpen', e.target.checked, fabricImage, canvas);
-      hasChanges = true;
-      History.push(canvas);
-    });
   }
 
   function _bindFilterSlider(sliderId, valId, filterKey, transform, suffix) {
@@ -354,8 +376,7 @@
   // ===== ANNOTATE TOOLS =====
   function _bindAnnotateTools() {
     // Text
-    document.getElementById('textFont').addEventListener('change',  (e) => TextTool.updateDefaults('fontFamily', e.target.value));
-    document.getElementById('textSize').addEventListener('input',   (e) => TextTool.updateDefaults('fontSize', parseInt(e.target.value)));
+document.getElementById('textSize').addEventListener('input',   (e) => TextTool.updateDefaults('fontSize', parseInt(e.target.value)));
     document.getElementById('textColor').addEventListener('input',  (e) => TextTool.updateDefaults('fill', e.target.value));
     document.getElementById('textBold').addEventListener('click',   (e) => {
       const isOn = e.currentTarget.classList.toggle('active');
@@ -384,6 +405,23 @@
       brushSizeVal.textContent = v + 'px';
       DrawTool.setBrushSize(v);
     });
+
+    // Blur Brush
+    const blurBrushSizeSlider = document.getElementById('blurBrushSizeSlider');
+    const blurBrushSizeVal    = document.getElementById('blurBrushSizeVal');
+    blurBrushSizeSlider.addEventListener('input', () => {
+      const v = parseInt(blurBrushSizeSlider.value);
+      blurBrushSizeVal.textContent = v + 'px';
+      BlurBrushTool.setRadius(v);
+    });
+
+    const blurStrengthSlider = document.getElementById('blurStrengthSlider');
+    const blurStrengthVal    = document.getElementById('blurStrengthVal');
+    blurStrengthSlider.addEventListener('input', () => {
+      const v = parseInt(blurStrengthSlider.value);
+      blurStrengthVal.textContent = v + 'px';
+      BlurBrushTool.setStrength(v);
+    });
   }
 
   // ===== SHAPES TOOL =====
@@ -395,22 +433,87 @@
         ShapesTool.setConfig('shape', btn.dataset.shape);
       });
     });
-    document.getElementById('shapeFill').addEventListener('input', (e) => {
-      ShapesTool.setConfig('fill', e.target.value);
-    });
-    document.getElementById('shapeStroke').addEventListener('input', (e) => {
-      ShapesTool.setConfig('stroke', e.target.value);
-    });
-    document.getElementById('shapeNoFill').addEventListener('change', (e) => {
-      ShapesTool.setConfig('noFill', e.target.checked);
-    });
+
+    const fillInput    = document.getElementById('shapeFill');
+    const strokeInput  = document.getElementById('shapeStroke');
+    const noFillCheck  = document.getElementById('shapeNoFill');
     const strokeSlider = document.getElementById('shapeStrokeWidthSlider');
     const strokeVal    = document.getElementById('shapeStrokeWidthVal');
+
+    fillInput.addEventListener('input', (e) => {
+      ShapesTool.setConfig('fill', e.target.value);
+      _applyShapePropertyToSelected();
+    });
+    fillInput.addEventListener('change', () => {
+      if (canvas && canvas.getActiveObject()) { hasChanges = true; History.push(canvas); }
+    });
+
+    strokeInput.addEventListener('input', (e) => {
+      ShapesTool.setConfig('stroke', e.target.value);
+      _applyShapePropertyToSelected();
+    });
+    strokeInput.addEventListener('change', () => {
+      if (canvas && canvas.getActiveObject()) { hasChanges = true; History.push(canvas); }
+    });
+
+    noFillCheck.addEventListener('change', (e) => {
+      ShapesTool.setConfig('noFill', e.target.checked);
+      _applyShapePropertyToSelected();
+      if (canvas && canvas.getActiveObject()) { hasChanges = true; History.push(canvas); }
+    });
+
     strokeSlider.addEventListener('input', () => {
       const v = parseInt(strokeSlider.value);
       strokeVal.textContent = v + 'px';
       ShapesTool.setConfig('strokeWidth', v);
+      _applyShapePropertyToSelected();
     });
+    strokeSlider.addEventListener('change', () => {
+      if (canvas && canvas.getActiveObject()) { hasChanges = true; History.push(canvas); }
+    });
+  }
+
+  function _syncSidebarToShape(obj) {
+    if (!obj || obj.type === 'image') return;
+
+    const fill   = obj.fill;
+    const stroke = obj.stroke;
+    const sw     = obj.strokeWidth;
+
+    const isTransparent = !fill || fill === 'transparent';
+
+    if (!isTransparent && typeof fill === 'string' && fill.startsWith('#')) {
+      document.getElementById('shapeFill').value = fill;
+      ShapesTool.setConfig('fill', fill);
+    }
+    if (stroke && typeof stroke === 'string' && stroke.startsWith('#')) {
+      document.getElementById('shapeStroke').value = stroke;
+      ShapesTool.setConfig('stroke', stroke);
+    }
+
+    document.getElementById('shapeNoFill').checked = isTransparent;
+    ShapesTool.setConfig('noFill', isTransparent);
+
+    if (sw != null) {
+      const v = Math.round(sw);
+      document.getElementById('shapeStrokeWidthSlider').value = v;
+      document.getElementById('shapeStrokeWidthVal').textContent = v + 'px';
+      ShapesTool.setConfig('strokeWidth', v);
+    }
+  }
+
+  function _applyShapePropertyToSelected() {
+    if (!canvas) return;
+    const obj = canvas.getActiveObject();
+    if (!obj || obj.type === 'image') return;
+
+    const cfg = ShapesTool.getConfig();
+    obj.set({
+      fill:        cfg.noFill ? 'transparent' : cfg.fill,
+      stroke:      cfg.stroke,
+      strokeWidth: cfg.strokeWidth,
+    });
+    canvas.requestRenderAll();
   }
 
   // ===== HEADER =====
@@ -450,7 +553,7 @@
     const base = originalFilename.replace(/\.[^.]+$/, '');
     const a    = document.createElement('a');
     a.href     = dataURL;
-    a.download = `pixelforge-${base}.${ext}`;
+    a.download = `localpixel-${base}.${ext}`;
     a.click();
   }
 
@@ -467,20 +570,32 @@
   // ===== HISTORY =====
   function _bindHistory() {
     undoBtn.addEventListener('click', () => {
-      History.undo(canvas, () => {
+      History.undo(canvas, (w, h) => {
+        if (w && h) {
+          canvasWrapper.style.width  = w + 'px';
+          canvasWrapper.style.height = h + 'px';
+        }
         fabricImage = _findFabricImage();
+        if (fabricImage) currentZoom = fabricImage.scaleX || 1;
         Filters.applyAll(fabricImage, canvas);
         ScaleTool.init(fabricImage);
         _populateScaleInputs();
+        _updateStatus();
         hasChanges = true;
       });
     });
     redoBtn.addEventListener('click', () => {
-      History.redo(canvas, () => {
+      History.redo(canvas, (w, h) => {
+        if (w && h) {
+          canvasWrapper.style.width  = w + 'px';
+          canvasWrapper.style.height = h + 'px';
+        }
         fabricImage = _findFabricImage();
+        if (fabricImage) currentZoom = fabricImage.scaleX || 1;
         Filters.applyAll(fabricImage, canvas);
         ScaleTool.init(fabricImage);
         _populateScaleInputs();
+        _updateStatus();
         hasChanges = true;
       });
     });
@@ -534,20 +649,15 @@
   function _resetFilterUI() {
     [['brightnessSlider','brightnessVal','0'],
      ['contrastSlider',  'contrastVal',  '0'],
-     ['saturationSlider','saturationVal','0'],
-     ['blurSlider',      'blurVal',      '0px']].forEach(([sid, vid, def]) => {
+     ['saturationSlider','saturationVal','0']].forEach(([sid, vid, def]) => {
       const s = document.getElementById(sid);
       const v = document.getElementById(vid);
       if (s) s.value = 0;
       if (v) v.textContent = def;
     });
-    const sh = document.getElementById('sharpenToggle');
-    if (sh) sh.checked = false;
     const rs = document.getElementById('rotateSlider');
     if (rs) rs.value = 0;
     document.getElementById('rotateAngleVal').textContent = '0°';
-    document.getElementById('scaleInput').value = '100';
-    document.getElementById('scaleVal').textContent = '100%';
     document.getElementById('scaleWidthInput').value  = '';
     document.getElementById('scaleHeightInput').value = '';
   }

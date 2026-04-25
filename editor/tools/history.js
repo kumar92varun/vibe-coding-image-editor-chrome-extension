@@ -7,7 +7,10 @@ const History = (() => {
   function push(canvas) {
     // Discard any redo states ahead of pointer
     stack = stack.slice(0, pointer + 1);
-    stack.push(JSON.stringify(canvas.toJSON(['selectable', 'evented', 'id'])));
+    const state = canvas.toJSON(['selectable', 'evented', 'id']);
+    state.__w = canvas.width;
+    state.__h = canvas.height;
+    stack.push(JSON.stringify(state));
     if (stack.length > MAX) stack.shift();
     pointer = stack.length - 1;
     _notify();
@@ -26,10 +29,15 @@ const History = (() => {
   }
 
   function _restore(canvas, cb) {
-    canvas.loadFromJSON(stack[pointer], () => {
+    const state = JSON.parse(stack[pointer]);
+    if (state.__w && state.__h) {
+      canvas.setWidth(state.__w);
+      canvas.setHeight(state.__h);
+    }
+    canvas.loadFromJSON(state, () => {
       canvas.renderAll();
       _notify();
-      if (cb) cb();
+      if (cb) cb(state.__w, state.__h);
     });
   }
 

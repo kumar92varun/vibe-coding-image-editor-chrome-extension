@@ -1,19 +1,11 @@
-/* Fabric.js filter application — brightness, contrast, saturation, blur, sharpen */
+/* Fabric.js filter application — brightness, contrast, saturation, blur */
 const Filters = (() => {
-  // Current filter values
   const state = {
     brightness: 0,
     contrast:   0,
     saturation: 0,
     blur:       0,
-    sharpen:    false,
   };
-
-  const SHARPEN_MATRIX = [
-     0, -1,  0,
-    -1,  5, -1,
-     0, -1,  0,
-  ];
 
   function applyAll(fabricImage, canvas) {
     if (!fabricImage) return;
@@ -32,9 +24,6 @@ const Filters = (() => {
     if (state.blur > 0)
       filters.push(new fabric.Image.filters.Blur({ blur: state.blur / 100 }));
 
-    if (state.sharpen)
-      filters.push(new fabric.Image.filters.Convolute({ matrix: SHARPEN_MATRIX }));
-
     fabricImage.filters = filters;
     fabricImage.applyFilters();
     canvas.renderAll();
@@ -50,7 +39,6 @@ const Filters = (() => {
     state.contrast   = 0;
     state.saturation = 0;
     state.blur       = 0;
-    state.sharpen    = false;
     applyAll(fabricImage, canvas);
   }
 

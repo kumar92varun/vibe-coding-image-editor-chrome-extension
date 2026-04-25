@@ -1,4 +1,4 @@
-# PixelForge
+# LocalPixel
 
 A powerful in-browser image editor Chrome extension. No uploads, no backend — everything runs locally using the Canvas API and Fabric.js.
 
@@ -7,8 +7,8 @@ A powerful in-browser image editor Chrome extension. No uploads, no backend — 
 1. Open Chrome and navigate to `chrome://extensions`
 2. Enable **Developer mode** (toggle in the top-right corner)
 3. Click **Load unpacked**
-4. Select the `pixelforge/` folder
-5. Click the PixelForge icon in the toolbar — the editor opens in a new tab
+4. Select the `localpixel/` folder
+5. Click the LocalPixel icon in the toolbar — the editor opens in a new tab
 
 ## Features
 
@@ -32,7 +32,7 @@ A powerful in-browser image editor Chrome extension. No uploads, no backend — 
 ## File Structure
 
 ```
-pixelforge/
+localpixel/
 ├── manifest.json
 ├── background.js
 ├── editor/

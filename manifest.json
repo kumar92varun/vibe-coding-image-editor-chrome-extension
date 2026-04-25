@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "PixelForge",
+  "name": "LocalPixel",
   "version": "1.0.0",
   "description": "A powerful in-browser image editor. Click to open in a new tab.",
   "permissions": [],
   "action": {
-    "default_title": "Open PixelForge"
+    "default_title": "Open LocalPixel"
   },
   "background": {
     "service_worker": "background.js"
@@ -14,5 +14,8 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }

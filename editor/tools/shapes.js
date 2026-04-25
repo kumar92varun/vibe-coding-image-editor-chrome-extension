@@ -165,7 +165,9 @@ const ShapesTool = (() => {
     config[key] = value;
   }
 
+  function getConfig() { return { ...config }; }
+
   function isActive() { return active; }
 
-  return { activate, deactivate, setConfig, isActive };
+  return { activate, deactivate, setConfig, getConfig, isActive };
 })();

@@ -1,11 +1,9 @@
-/* Crop tool: overlay rect with handles, apply via offscreen canvas */
+/* Crop tool: free-form overlay rect with handles, apply via offscreen canvas */
 const CropTool = (() => {
   let canvas, fabricImage, onApply;
   let cropRect = null;
   let active = false;
-  let ratio = 'free'; // 'free' | '1:1' | '4:3' | '16:9'
-
-  const RATIO_MAP = { 'free': null, '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
+  let _savedUniformScaling;
 
   function activate(c, img, applyCallback) {
     canvas = c;
@@ -13,89 +11,110 @@ const CropTool = (() => {
     onApply = applyCallback;
     active = true;
 
-    // Deselect everything
+    _savedUniformScaling = canvas.uniformScaling;
+    canvas.uniformScaling = false;
+
     canvas.discardActiveObject();
 
-    // Position initial crop rect over the image bounding box
-    const imgBounds = _getImageBounds();
-    const w = imgBounds.width * 0.8;
-    const h = ratio === 'free' ? imgBounds.height * 0.8 : w / RATIO_MAP[ratio];
+    const ib   = _getImageBounds();
+    const left = ib.left   + ib.width  * 0.1;
+    const top  = ib.top    + ib.height * 0.1;
 
     cropRect = new fabric.Rect({
-      left:           imgBounds.left + imgBounds.width * 0.1,
-      top:            imgBounds.top + imgBounds.height * 0.1,
-      width:          w,
-      height:         h,
-      fill:           'transparent',
-      stroke:         '#f5a623',
-      strokeWidth:    1.5,
-      strokeDashArray:[6, 3],
-      cornerColor:    '#f5a623',
-      cornerStyle:    'rect',
-      cornerSize:     10,
+      left,
+      top,
+      width:              ib.width  * 0.8,
+      height:             ib.height * 0.8,
+      fill:               'transparent',
+      stroke:             '#2563EB',
+      strokeWidth:        1.5,
+      strokeDashArray:    [6, 3],
+      cornerColor:        '#2563EB',
+      cornerStyle:        'rect',
+      cornerSize:         10,
       transparentCorners: false,
-      lockRotation:   true,
-      id:             '__cropRect',
+      lockRotation:       true,
+      lockUniScaling:     false,
+      id:                 '__cropRect',
     });
 
-    if (ratio !== 'free') {
-      cropRect.lockUniScaling = false;
-      cropRect.on('scaling', _enforceRatio);
-    }
+    canvas.on('object:moving', _constrainMove);
+    canvas.on('object:scaling', _constrainScale);
 
     canvas.add(cropRect);
     canvas.setActiveObject(cropRect);
     canvas.renderAll();
   }
 
-  function _enforceRatio() {
-    if (!cropRect || ratio === 'free') return;
-    const r = RATIO_MAP[ratio];
-    if (!r) return;
-    cropRect.set({ height: cropRect.width / r });
+  function _constrainMove(e) {
+    if (e.target !== cropRect) return;
+    const ib  = _getImageBounds();
+    const obj = e.target;
+    const w   = obj.getScaledWidth();
+    const h   = obj.getScaledHeight();
+
+    obj.left = Math.max(ib.left, Math.min(obj.left, ib.left + ib.width  - w));
+    obj.top  = Math.max(ib.top,  Math.min(obj.top,  ib.top  + ib.height - h));
+    obj.setCoords();
   }
 
-  function setRatio(r) {
-    ratio = r;
-    if (cropRect && r !== 'free') {
-      const rVal = RATIO_MAP[r];
-      cropRect.set({ height: cropRect.width / rVal });
-      cropRect.off('scaling', _enforceRatio);
-      cropRect.on('scaling', _enforceRatio);
-      canvas.renderAll();
+  function _constrainScale(e) {
+    if (e.target !== cropRect) return;
+    const ib  = _getImageBounds();
+    const obj = e.target;
+
+    // Current content edges (no stroke) before clamping
+    let left   = obj.left;
+    let top    = obj.top;
+    let right  = obj.left   + obj.width  * obj.scaleX;
+    let bottom = obj.top    + obj.height * obj.scaleY;
+
+    const ibRight  = ib.left + ib.width;
+    const ibBottom = ib.top  + ib.height;
+    const minPx    = 20;
+
+    // Clamp right edge — preserve left
+    if (right > ibRight) {
+      obj.scaleX = Math.max(minPx / obj.width, (ibRight - left) / obj.width);
+      right = left + obj.width * obj.scaleX;
     }
+
+    // Clamp bottom edge — preserve top
+    if (bottom > ibBottom) {
+      obj.scaleY = Math.max(minPx / obj.height, (ibBottom - top) / obj.height);
+      bottom = top + obj.height * obj.scaleY;
+    }
+
+    // Clamp left edge — preserve right edge
+    if (left < ib.left) {
+      obj.left   = ib.left;
+      obj.scaleX = Math.max(minPx / obj.width, (right - ib.left) / obj.width);
+    }
+
+    // Clamp top edge — preserve bottom edge
+    if (top < ib.top) {
+      obj.top    = ib.top;
+      obj.scaleY = Math.max(minPx / obj.height, (bottom - ib.top) / obj.height);
+    }
+
+    obj.setCoords();
   }
 
   function applyAndCrop() {
     if (!active || !cropRect || !fabricImage) return;
 
-    // Get crop rect in canvas (absolute) coordinates
     cropRect.setCoords();
     const bound = cropRect.getBoundingRect(true);
 
-    // Image's transform (position/scale/angle relative to canvas)
-    const imgEl = fabricImage.getElement();
-
-    // Draw original image onto a temp canvas clipped to crop rect
+    const imgEl  = fabricImage.getElement();
     const scaleX = fabricImage.scaleX || 1;
     const scaleY = fabricImage.scaleY || 1;
-    const angle  = (fabricImage.angle || 0) * Math.PI / 180;
 
-    // Convert canvas coordinates to image-local coordinates
-    const imgLeft   = fabricImage.left;
-    const imgTop    = fabricImage.top;
-
-    // Crop rect center in canvas space
-    const crLeft = bound.left - imgLeft;
-    const crTop  = bound.top  - imgTop;
-
-    // Account for image scale
-    const srcX = crLeft / scaleX;
-    const srcY = crTop  / scaleY;
+    const srcX = (bound.left - fabricImage.left) / scaleX;
+    const srcY = (bound.top  - fabricImage.top)  / scaleY;
     const srcW = bound.width  / scaleX;
     const srcH = bound.height / scaleY;
 
-    // Clamp to image bounds
     const clampX = Math.max(0, srcX);
     const clampY = Math.max(0, srcY);
     const clampW = Math.min(srcW, imgEl.naturalWidth  - clampX);
@@ -104,10 +123,8 @@ const CropTool = (() => {
     const offscreen = document.createElement('canvas');
     offscreen.width  = Math.round(clampW);
     offscreen.height = Math.round(clampH);
-    const ctx = offscreen.getContext('2d');
-    ctx.drawImage(imgEl, clampX, clampY, clampW, clampH, 0, 0, clampW, clampH);
+    offscreen.getContext('2d').drawImage(imgEl, clampX, clampY, clampW, clampH, 0, 0, clampW, clampH);
 
-    // Hand cropped dataURL back to editor
     const dataURL = offscreen.toDataURL('image/png');
     _cleanup();
     if (onApply) onApply(dataURL);
@@ -118,22 +135,26 @@ const CropTool = (() => {
   }
 
   function _cleanup() {
+    canvas.off('object:moving', _constrainMove);
+    canvas.off('object:scaling', _constrainScale);
     if (cropRect) {
       canvas.remove(cropRect);
       cropRect = null;
     }
     active = false;
+    if (_savedUniformScaling !== undefined) {
+      canvas.uniformScaling = _savedUniformScaling;
+    }
     canvas.discardActiveObject();
     canvas.renderAll();
   }
 
   function _getImageBounds() {
     fabricImage.setCoords();
-    const br = fabricImage.getBoundingRect(true);
-    return br;
+    return fabricImage.getBoundingRect(true);
   }
 
   function isActive() { return active; }
 
-  return { activate, applyAndCrop, cancel, setRatio, isActive };
+  return { activate, applyAndCrop, cancel, isActive };
 })();

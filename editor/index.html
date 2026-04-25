@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PixelForge</title>
+  <title>LocalPixel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="editor.css" />
 </head>
 <body>
@@ -15,12 +15,12 @@
   <div id="dropzone" class="dropzone-screen">
     <div class="dropzone-inner">
       <div class="dropzone-logo">
-        <span class="logo-text">PixelForge</span>
+        <span class="logo-text">LocalPixel</span>
       </div>
       <div class="dropzone-icon">
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="4" y="4" width="56" height="56" rx="6" stroke="#f5a623" stroke-width="2" stroke-dasharray="6 4"/>
-          <path d="M32 20 L32 44 M22 30 L32 20 L42 30" stroke="#f5a623" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="4" y="4" width="56" height="56" rx="6" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
+          <path d="M32 20 L32 44 M22 30 L32 20 L42 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <p class="dropzone-label">Drop an image here, or</p>
@@ -36,7 +36,7 @@
     <!-- HEADER -->
     <header class="editor-header">
       <div class="header-left">
-        <span class="logo-text">PixelForge</span>
+        <span class="logo-text">LocalPixel</span>
       </div>
       <div class="header-center">
         <span class="filename-label" id="filenameDisplay">untitled.png</span>
@@ -78,17 +78,9 @@
           <button class="tool-btn" data-tool="crop">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 2v13h13M2 5h13v13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             Crop
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
-            <div class="panel-row">
-              <span class="panel-label">Ratio</span>
-              <div class="btn-group">
-                <button class="btn-toggle active" data-ratio="free">Free</button>
-                <button class="btn-toggle" data-ratio="1:1">1:1</button>
-                <button class="btn-toggle" data-ratio="4:3">4:3</button>
-                <button class="btn-toggle" data-ratio="16:9">16:9</button>
-              </div>
-            </div>
             <div class="panel-row" style="gap:6px">
               <button class="btn-primary" id="applyCropBtn" style="flex:1;justify-content:center">Apply Crop</button>
               <button class="btn-ghost" id="cancelCropBtn" style="flex:1;justify-content:center">Cancel</button>
@@ -101,12 +93,9 @@
           <button class="tool-btn" data-tool="rotate">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4.5 9A6 6 0 1 0 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 2v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Rotate
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
-            <div class="panel-row">
-              <button class="btn-secondary half" id="rotateLeftBtn">↺ Left</button>
-              <button class="btn-secondary half" id="rotateRightBtn">↻ Right</button>
-            </div>
             <div class="panel-row">
               <span class="panel-label">Free angle</span>
               <span class="panel-value" id="rotateAngleVal">0°</span>
@@ -120,20 +109,9 @@
           <button class="tool-btn" data-tool="scale">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 3h5v2H5v3H3V3zm9 0h5v5h-2V5h-3V3zM3 12h2v3h3v2H3v-5zm12 3h-3v2h5v-5h-2v3z" fill="currentColor"/></svg>
             Scale
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
-            <!-- Percent mode -->
-            <div class="panel-row">
-              <span class="panel-label">Percent</span>
-              <span class="panel-value" id="scaleVal">100%</span>
-            </div>
-            <div class="panel-row">
-              <button class="btn-secondary third" id="scaleDownBtn">−10%</button>
-              <input type="number" id="scaleInput" class="num-input" value="100" min="10" max="500" style="width:56px" />
-              <button class="btn-secondary third" id="scaleUpBtn">+10%</button>
-            </div>
-            <div class="panel-divider"></div>
-            <!-- Dimension mode -->
             <div class="panel-row">
               <span class="panel-label">Width</span>
               <input type="number" id="scaleWidthInput" class="num-input" placeholder="px" min="1" style="width:72px" />
@@ -156,25 +134,12 @@
           </div>
         </div>
 
-        <!-- Flip -->
-        <div class="tool-item" id="tool-flip">
-          <button class="tool-btn" data-tool="flip">
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 2v16M2 7l5 3-5 3V7zm16 0v6l-5-3 5-3z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Flip
-          </button>
-          <div class="tool-panel">
-            <div class="panel-row">
-              <button class="btn-secondary half" id="flipHBtn">⇆ Horizontal</button>
-              <button class="btn-secondary half" id="flipVBtn">⇅ Vertical</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Shapes -->
         <div class="tool-item" id="tool-shapes">
           <button class="tool-btn" data-tool="shapes">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><circle cx="14.5" cy="5.5" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 18l4-7 4 7H2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 12h6M15 9v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             Shapes
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
             <div class="shape-grid">
@@ -212,15 +177,15 @@
             <div class="panel-row">
               <span class="panel-label">Fill</span>
               <input type="color" id="shapeFill" value="#f5a623" class="color-input" />
+              <label class="toggle-label" style="margin-left:4px">
+                <input type="checkbox" id="shapeNoFill" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                Transparent
+              </label>
             </div>
             <div class="panel-row">
               <span class="panel-label">Stroke</span>
               <input type="color" id="shapeStroke" value="#1c1917" class="color-input" />
-              <label class="toggle-label" style="margin-left:4px">
-                <input type="checkbox" id="shapeNoFill" />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                Outline only
-              </label>
             </div>
             <div class="panel-row">
               <span class="panel-label">Stroke W</span>
@@ -241,6 +206,7 @@
           <button class="tool-btn" data-tool="brightness">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             Brightness
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
             <div class="panel-row">
@@ -256,6 +222,7 @@
           <button class="tool-btn" data-tool="contrast">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 3v14" stroke="currentColor" stroke-width="1.5"/><path d="M10 3a7 7 0 0 1 0 14V3z" fill="currentColor"/></svg>
             Contrast
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
             <div class="panel-row">
@@ -263,53 +230,6 @@
               <span class="panel-value" id="contrastVal">0</span>
             </div>
             <input type="range" id="contrastSlider" min="-100" max="100" value="0" class="slider" />
-          </div>
-        </div>
-
-        <!-- Saturation -->
-        <div class="tool-item" id="tool-saturation">
-          <button class="tool-btn" data-tool="saturation">
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3c-3.9 0-7 3.1-7 7s3.1 7 7 7V3z" fill="currentColor"/><path d="M10 3a7 7 0 0 1 0 14" stroke="currentColor" stroke-width="1.5"/></svg>
-            Saturation
-          </button>
-          <div class="tool-panel">
-            <div class="panel-row">
-              <span class="panel-label">Value</span>
-              <span class="panel-value" id="saturationVal">0</span>
-            </div>
-            <input type="range" id="saturationSlider" min="-100" max="100" value="0" class="slider" />
-          </div>
-        </div>
-
-        <!-- Blur -->
-        <div class="tool-item" id="tool-blur">
-          <button class="tool-btn" data-tool="blur">
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3" fill="currentColor" opacity=".4"/><circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.5" opacity=".35"/><circle cx="10" cy="10" r="8.5" stroke="currentColor" stroke-width="1" opacity=".2"/></svg>
-            Blur
-          </button>
-          <div class="tool-panel">
-            <div class="panel-row">
-              <span class="panel-label">Radius</span>
-              <span class="panel-value" id="blurVal">0px</span>
-            </div>
-            <input type="range" id="blurSlider" min="0" max="20" value="0" class="slider" />
-          </div>
-        </div>
-
-        <!-- Sharpen -->
-        <div class="tool-item" id="tool-sharpen">
-          <button class="tool-btn" data-tool="sharpen">
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 2l2 6h6l-5 4 2 6-5-3.5L5 18l2-6-5-4h6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-            Sharpen
-          </button>
-          <div class="tool-panel">
-            <div class="panel-row">
-              <label class="toggle-label">
-                <input type="checkbox" id="sharpenToggle" />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                Apply Sharpen
-              </label>
-            </div>
           </div>
         </div>
 
@@ -323,18 +243,10 @@
           <button class="tool-btn" data-tool="text">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 4h14M10 4v13M7 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             Text
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
-            <div class="panel-row">
-              <span class="panel-label">Font</span>
-              <select id="textFont" class="format-select" style="flex:1">
-                <option value="DM Mono">DM Mono</option>
-                <option value="Arial">Arial</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Impact">Impact</option>
-                <option value="Courier New">Courier New</option>
-              </select>
-            </div>
+
             <div class="panel-row">
               <span class="panel-label">Size</span>
               <input type="number" id="textSize" class="num-input" value="32" min="8" max="200" style="width:72px" />
@@ -374,6 +286,7 @@
           <button class="tool-btn" data-tool="draw">
             <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 17l3-1L16.5 5.5a1.5 1.5 0 0 0-2.1-2.1L4 14l-1 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
             Draw
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="tool-panel">
             <div class="panel-row">
@@ -388,27 +301,89 @@
           </div>
         </div>
 
+        <!-- Blur Brush -->
+        <div class="tool-item" id="tool-blur">
+          <button class="tool-btn" data-tool="blur">
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 17l2.5-1L15 6.5a2.1 2.1 0 0 0-3-3L2.5 13.5 3 17z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="14" cy="5" r="3.5" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1.5" opacity=".7"/></svg>
+            Blur Brush
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="tool-panel">
+            <div class="panel-row">
+              <span class="panel-label">Brush Size</span>
+              <span class="panel-value" id="blurBrushSizeVal">20px</span>
+            </div>
+            <input type="range" id="blurBrushSizeSlider" min="5" max="100" value="20" class="slider" />
+            <div class="panel-row">
+              <span class="panel-label">Strength</span>
+              <span class="panel-value" id="blurStrengthVal">10px</span>
+            </div>
+            <input type="range" id="blurStrengthSlider" min="1" max="30" value="10" class="slider" />
+            <p class="panel-hint">Click and drag to blur areas</p>
+          </div>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <!-- Saturation -->
+        <div class="tool-item" id="tool-saturation">
+          <button class="tool-btn" data-tool="saturation">
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3c-3.9 0-7 3.1-7 7s3.1 7 7 7V3z" fill="currentColor"/><path d="M10 3a7 7 0 0 1 0 14" stroke="currentColor" stroke-width="1.5"/></svg>
+            Saturation
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="tool-panel">
+            <div class="panel-row">
+              <span class="panel-label">Value</span>
+              <span class="panel-value" id="saturationVal">0</span>
+            </div>
+            <input type="range" id="saturationSlider" min="-100" max="100" value="0" class="slider" />
+          </div>
+        </div>
+
+        <!-- Flip -->
+        <div class="tool-item" id="tool-flip">
+          <button class="tool-btn" data-tool="flip">
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 2v16M2 7l5 3-5 3V7zm16 0v6l-5-3 5-3z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Flip
+            <svg class="tool-chevron" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="tool-panel">
+            <div class="panel-row">
+              <button class="btn-secondary half" id="flipHBtn">⇆ Horizontal</button>
+              <button class="btn-secondary half" id="flipVBtn">⇅ Vertical</button>
+            </div>
+          </div>
+        </div>
+
         <div class="tool-separator"></div>
 
         <!-- ── HISTORY ── -->
-        <div class="tool-group-label">History</div>
+        <div class="tool-item open" id="tool-history">
+          <button class="tool-btn" data-tool="history">
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 5v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.2 4.2A7 7 0 1 1 3 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 5.5V10H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            History
+          </button>
+          <div class="tool-panel">
+            <div class="history-btns">
+              <button class="btn-secondary half" id="undoBtn" disabled>
+                <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 8H13a4 4 0 0 1 0 8H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 4l-3 4 3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Undo
+              </button>
+              <button class="btn-secondary half" id="redoBtn" disabled>
+                <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M16 8H7a4 4 0 0 0 0 8h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M16 4l3 4-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Redo
+              </button>
+            </div>
+            <div class="history-btns">
+              <button class="btn-danger full-width" id="resetBtn">
+                <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Reset Image
+              </button>
+            </div>
+          </div>
+        </div>
 
-        <div class="history-btns">
-          <button class="btn-secondary half" id="undoBtn" disabled>
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 8H13a4 4 0 0 1 0 8H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 4l-3 4 3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Undo
-          </button>
-          <button class="btn-secondary half" id="redoBtn" disabled>
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M16 8H7a4 4 0 0 0 0 8h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M16 4l3 4-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Redo
-          </button>
-        </div>
-        <div class="history-btns" style="margin-top:6px">
-          <button class="btn-danger full-width" id="resetBtn">
-            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            Reset Image
-          </button>
-        </div>
 
       </aside>
 
@@ -453,6 +428,7 @@
   <script src="tools/shapes.js"></script>
   <script src="tools/text.js"></script>
   <script src="tools/draw.js"></script>
+  <script src="tools/blur-brush.js"></script>
   <script src="editor.js"></script>
 </body>
 </html>
