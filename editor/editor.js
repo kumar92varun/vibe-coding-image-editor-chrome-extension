@@ -241,7 +241,8 @@
   }
 
   function _deactivateCanvasMode() {
-    if (CropTool.isActive())   { CropTool.cancel(); canvasArea.classList.remove('crop-mode'); }
+    if (CropTool.isActive())   CropTool.cancel();
+    canvasArea.classList.remove('crop-mode'); // always remove — applyAndCrop deactivates before calling onApply
     if (TextTool.isActive())   TextTool.deactivate();
     if (DrawTool.isActive())   { DrawTool.deactivate(); canvasArea.classList.remove('draw-mode'); }
     if (ShapesTool.isActive())    { ShapesTool.deactivate();    canvasArea.classList.remove('shapes-mode'); }
