@@ -15,10 +15,13 @@ A powerful in-browser image editor Chrome extension. No uploads, no backend — 
 | Category | Tools |
 |----------|-------|
 | Transform | Crop (free + aspect ratio), Rotate (90° + free angle), Scale, Flip H/V |
-| Filters | Brightness, Contrast, Saturation, Blur, Sharpen |
-| Annotate | Text overlay, Freehand draw |
+| Shapes | Rectangle, Circle, Line, Arrow, Triangle, Star — with fill, stroke, and stroke-width controls |
+| Filters | Brightness, Contrast, Saturation, Blur |
+| Annotate | Text overlay (bold/italic, optional background + padding), Freehand draw, Blur Brush (paint-to-blur) |
 | History | Undo (Ctrl+Z), Redo (Ctrl+Shift+Z), Reset to original |
 | Export | PNG, JPG, WebP with quality control |
+
+Accepted input formats: JPG · PNG · WebP · GIF
 
 ## Keyboard Shortcuts
 
@@ -26,7 +29,7 @@ A powerful in-browser image editor Chrome extension. No uploads, no backend — 
 |-----|--------|
 | `Ctrl+Z` | Undo |
 | `Ctrl+Shift+Z` | Redo |
-| `Delete` / `Backspace` | Remove selected object (text/drawing) |
+| `Delete` / `Backspace` | Remove selected object (text/shape/drawing) |
 | `Escape` | Cancel active tool / deselect |
 
 ## File Structure
@@ -44,9 +47,11 @@ localpixel/
 │       ├── rotate.js
 │       ├── scale.js
 │       ├── flip.js
+│       ├── shapes.js
 │       ├── filters.js
 │       ├── text.js
 │       ├── draw.js
+│       ├── blur-brush.js
 │       └── history.js
 ├── vendor/
 │   └── fabric.min.js
