@@ -2,19 +2,20 @@
 (function () {
 
   /* ── state ── */
-  let imageFiles = [];   // { file, dataUrl, name, brightness, contrast }
+  let imageFiles = [];   // { file, handle, dataUrl, name, brightness, contrast }
   let selectedSet = new Set();
   let dragSrcIdx = null;
 
   /* ── element refs ── */
-  const pdfImageInput      = document.getElementById('pdfImageInput');
-  const pdfBrowseBtn       = document.getElementById('pdfBrowseBtn');
-  const pdfFileCount       = document.getElementById('pdfFileCount');
-  const pdfRenderBtn       = document.getElementById('pdfRenderBtn');
-  const pdfModal           = document.getElementById('pdfModal');
-  const pdfImageList       = document.getElementById('pdfImageList');
-  const pdfDownloadBtn     = document.getElementById('pdfDownloadBtn');
-  const pdfModalClose      = document.getElementById('pdfModalCloseBtn');
+  const pdfImageInput        = document.getElementById('pdfImageInput');
+  const pdfBrowseBtn         = document.getElementById('pdfBrowseBtn');
+  const pdfFileCount         = document.getElementById('pdfFileCount');
+  const pdfModal             = document.getElementById('pdfModal');
+  const pdfImageList         = document.getElementById('pdfImageList');
+  const pdfDownloadBtn       = document.getElementById('pdfDownloadBtn');
+  const pdfModalClose        = document.getElementById('pdfModalCloseBtn');
+  const pdfBulkDownloadBtn   = document.getElementById('pdfBulkDownloadBtn');
+  const pdfOverwriteBtn      = document.getElementById('pdfOverwriteBtn');
 
   const pdfBrightnessSlider  = document.getElementById('pdfBrightnessSlider');
   const pdfBrightnessVal     = document.getElementById('pdfBrightnessVal');
@@ -34,20 +35,35 @@
   const padCancelBtn    = document.getElementById('padCancelBtn');
 
   /* ── browse ── */
-  pdfBrowseBtn.addEventListener('click', () => pdfImageInput.click());
+  pdfBrowseBtn.addEventListener('click', async () => {
+    if (window.showOpenFilePicker) {
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          types: [{ description: 'Images', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] } }],
+        });
+        const entries = await Promise.all(handles.map(async h => ({ file: await h.getFile(), handle: h })));
+        loadFiles(entries);
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err);
+      }
+    } else {
+      pdfImageInput.click();
+    }
+  });
 
   pdfImageInput.addEventListener('change', () => {
     const files = Array.from(pdfImageInput.files);
     if (!files.length) return;
-    loadFiles(files);
+    loadFiles(files.map(f => ({ file: f, handle: null })));
     pdfImageInput.value = '';
   });
 
-  function loadFiles(files) {
-    const readers = files.map(file => new Promise(resolve => {
+  function loadFiles(entries) {
+    const readers = entries.map(({ file, handle }) => new Promise(resolve => {
       const fr = new FileReader();
       fr.onload = e => resolve({
-        file, dataUrl: e.target.result, name: file.name,
+        file, handle, dataUrl: e.target.result, name: file.name,
         brightness: 0, contrast: 0,
       });
       fr.readAsDataURL(file);
@@ -55,28 +71,70 @@
     Promise.all(readers).then(items => {
       imageFiles = imageFiles.concat(items);
       updateCount();
+      selectedSet.clear();
+      updateScopeUI();
+      renderList();
+      pdfModal.classList.remove('hidden');
     });
   }
 
   function updateCount() {
     const n = imageFiles.length;
     pdfFileCount.textContent = n === 0 ? '0 images selected' : `${n} image${n > 1 ? 's' : ''} selected`;
-    pdfFileCount.classList.toggle('hidden', false);
-    pdfRenderBtn.classList.toggle('hidden', n === 0);
+    pdfFileCount.classList.toggle('hidden', n === 0);
   }
-
-  /* ── render modal ── */
-  pdfRenderBtn.addEventListener('click', () => {
-    selectedSet.clear();
-    updateScopeUI();
-    renderList();
-    pdfModal.classList.remove('hidden');
-  });
 
   pdfModalClose.addEventListener('click', () => pdfModal.classList.add('hidden'));
 
   pdfModal.addEventListener('click', e => {
     if (e.target === pdfModal) pdfModal.classList.add('hidden');
+  });
+
+  /* ── bulk download images ── */
+  pdfBulkDownloadBtn.addEventListener('click', async () => {
+    if (!imageFiles.length) return;
+    const origHTML = pdfBulkDownloadBtn.innerHTML;
+    pdfBulkDownloadBtn.textContent = 'Downloading…';
+    pdfBulkDownloadBtn.disabled = true;
+    for (const img of imageFiles) {
+      const dataUrl = await applyAdjustments(img.dataUrl, img.brightness, img.contrast);
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = img.name;
+      a.click();
+      await new Promise(r => setTimeout(r, 150));
+    }
+    pdfBulkDownloadBtn.innerHTML = origHTML;
+    pdfBulkDownloadBtn.disabled = false;
+  });
+
+  /* ── bulk overwrite original files ── */
+  pdfOverwriteBtn.addEventListener('click', async () => {
+    if (!imageFiles.length) return;
+    const withHandles = imageFiles.filter(img => img.handle);
+    const origHTML = pdfOverwriteBtn.innerHTML;
+    if (!withHandles.length) {
+      pdfOverwriteBtn.textContent = 'Use Browse to enable overwrite';
+      pdfOverwriteBtn.disabled = true;
+      setTimeout(() => { pdfOverwriteBtn.innerHTML = origHTML; pdfOverwriteBtn.disabled = false; }, 2000);
+      return;
+    }
+    pdfOverwriteBtn.textContent = 'Saving…';
+    pdfOverwriteBtn.disabled = true;
+    for (const img of withHandles) {
+      const dataUrl = await applyAdjustments(img.dataUrl, img.brightness, img.contrast);
+      const blob = await (await fetch(dataUrl)).blob();
+      try {
+        const writable = await img.handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch (err) {
+        console.error('Failed to overwrite', img.name, err);
+      }
+    }
+    const n = withHandles.length;
+    pdfOverwriteBtn.textContent = `Saved ${n} file${n > 1 ? 's' : ''}!`;
+    setTimeout(() => { pdfOverwriteBtn.innerHTML = origHTML; pdfOverwriteBtn.disabled = false; }, 1500);
   });
 
   /* ── render image list ── */
