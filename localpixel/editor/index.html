@@ -87,8 +87,31 @@
           </svg>
           Remove Background
         </div>
+
+        <!-- Model status indicator -->
+        <div class="bg-model-status-row">
+          <span class="bg-model-dot" id="bgModelDot"></span>
+          <span class="bg-model-status-text" id="bgModelStatusText">Checking…</span>
+        </div>
+
+        <!-- Download progress bar (visible during download only) -->
+        <div class="bg-model-dl-wrap hidden" id="bgModelDlWrap">
+          <div class="bg-model-dl-track">
+            <div class="bg-model-dl-fill" id="bgModelDlFill" style="width:0%"></div>
+          </div>
+          <span class="bg-model-dl-pct" id="bgModelDlPct">0%</span>
+        </div>
+
         <input type="file" id="removeBgInput" accept="image/jpeg,image/png,image/webp" hidden />
-        <button class="btn-secondary full-sec-width" id="removeBgBrowseBtn">
+
+        <!-- Shown when model is NOT in cache -->
+        <button class="btn-secondary full-sec-width hidden" id="bgModelDownloadBtn">
+          <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Download AI Model (~44 MB)
+        </button>
+
+        <!-- Shown when model IS in cache -->
+        <button class="btn-secondary full-sec-width hidden" id="removeBgBrowseBtn">
           <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 4h14M3 8h8M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Browse Image
         </button>
@@ -739,5 +762,6 @@
   <script src="tools/doc-scanner.js"></script>
   <script src="editor.js"></script>
   <script type="module" src="tools/remove-bg.js"></script>
+  <script type="module" src="tools/bg-model-ui.js"></script>
 </body>
 </html>

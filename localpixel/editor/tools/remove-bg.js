@@ -1,10 +1,18 @@
 /* Remove Background — ES module (deferred, runs after DOM is ready) */
+import './bg-model.js';   /* installs fetch interceptor — must be first */
 import * as ort from '../../vendor/ort.min.mjs';
 import { removeBackground } from '../../vendor/bg-removal.mjs';
 
-/* Single-threaded ORT: prevents worker spawning that CSP would block */
+/*
+ * Point ORT at the extension's own WASM files.
+ * Same-origin extension URLs let ORT use new Worker(url) directly,
+ * avoiding the fetch→blob→import() path that MV3 CSP blocks.
+ */
 ort.env.wasm.numThreads = 1;
-ort.env.wasm.wasmPaths  = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
+ort.env.wasm.wasmPaths  = {
+  mjs:  chrome.runtime.getURL('vendor/wasm/ort-wasm-simd-threaded.mjs'),
+  wasm: chrome.runtime.getURL('vendor/wasm/ort-wasm-simd-threaded.wasm'),
+};
 
 /* ── DOM refs ── */
 const browseBtn      = document.getElementById('removeBgBrowseBtn');
