@@ -23,6 +23,7 @@
   const dropzoneInner   = dropzone.querySelector('.dropzone-inner');
 
   const loadNewBtn      = document.getElementById('loadNewBtn');
+  const copyImageBtn    = document.getElementById('copyImageBtn');
   const downloadBtn     = document.getElementById('downloadBtn');
   const overwriteBtn    = document.getElementById('overwriteBtn');
   const formatSelect    = document.getElementById('formatSelect');
@@ -99,6 +100,24 @@
         originalFileHandle = null;
         overwriteBtn.style.display = 'none';
         _loadFile(file);
+      }
+    });
+
+    document.addEventListener('paste', (e) => {
+      if (!editorShell.classList.contains('hidden')) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (!blob) continue;
+          const ext = item.type === 'image/jpeg' ? 'jpg' : (item.type.split('/')[1] || 'png');
+          const file = new File([blob], `pasted-image.${ext}`, { type: item.type });
+          originalFileHandle = null;
+          overwriteBtn.style.display = 'none';
+          _loadFile(file);
+          break;
+        }
       }
     });
   }
@@ -552,8 +571,25 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
         _resetToDropzone();
       }
     });
+    copyImageBtn.addEventListener('click', _copyImageToClipboard);
     downloadBtn.addEventListener('click', _downloadImage);
     overwriteBtn.addEventListener('click', _overwriteOriginal);
+  }
+
+  let _copyTimeout = null;
+  async function _copyImageToClipboard() {
+    if (!canvas) return;
+    try {
+      const dataURL = canvas.toDataURL({ format: 'png', multiplier: 1 });
+      const blob = await (await fetch(dataURL)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      const label = copyImageBtn.querySelector('span');
+      if (_copyTimeout) clearTimeout(_copyTimeout);
+      label.textContent = 'Copied!';
+      _copyTimeout = setTimeout(() => { label.textContent = 'Copy Image'; _copyTimeout = null; }, 1500);
+    } catch (err) {
+      console.error('Copy to clipboard failed:', err);
+    }
   }
 
   function _resetToDropzone() {
