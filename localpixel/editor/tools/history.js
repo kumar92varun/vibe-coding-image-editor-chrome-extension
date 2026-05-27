@@ -14,6 +14,8 @@ const History = (() => {
     const dims  = _dimsGetter ? _dimsGetter() : { w: canvas.width, h: canvas.height };
     state.__w = dims.w;
     state.__h = dims.h;
+    state.__exportW = dims.exportW || dims.w;
+    state.__exportH = dims.exportH || dims.h;
     stack.push(JSON.stringify(state));
     if (stack.length > MAX) stack.shift();
     pointer = stack.length - 1;
@@ -41,7 +43,7 @@ const History = (() => {
     canvas.loadFromJSON(state, () => {
       canvas.renderAll();
       _notify();
-      if (cb) cb(state.__w, state.__h);
+      if (cb) cb(state.__w, state.__h, state.__exportW, state.__exportH);
     });
   }
 

@@ -17,6 +17,8 @@
   let fitScale        = 1;   // fabricImage.scaleX applied by _fitImageToCanvas
   let fitDisplayW     = 0;   // canvas pixel width at viewportZoom = 1
   let fitDisplayH     = 0;   // canvas pixel height at viewportZoom = 1
+  let exportW         = 0;   // intended export pixel width (≥ fitDisplayW for large images)
+  let exportH         = 0;   // intended export pixel height
 
   // Pan state
   let isPanMode       = false;  // spacebar held
@@ -70,7 +72,7 @@
 
   // ===== INIT =====
   function init() {
-    History.setDimsGetter(() => ({ w: fitDisplayW, h: fitDisplayH }));
+    History.setDimsGetter(() => ({ w: fitDisplayW, h: fitDisplayH, exportW, exportH }));
     _bindDropzone();
     _bindHeader();
     _bindToolButtons();
@@ -217,6 +219,8 @@
     fitScale    = scale;
     fitDisplayW = Math.round(img.width  * scale);
     fitDisplayH = Math.round(img.height * scale);
+    exportW     = img.width;
+    exportH     = img.height;
     viewportZoom = 1;
     currentZoom  = scale;
 
@@ -428,6 +432,8 @@
     fitScale     = fabricImage.scaleX;
     fitDisplayW  = newW;
     fitDisplayH  = newH;
+    exportW      = newW;
+    exportH      = newH;
     viewportZoom = 1;
     currentZoom  = fitScale;
 
@@ -636,7 +642,7 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     canvas = null; fabricImage = null; originalSrc = null;
     hasChanges = false; activeTool = null;
     originalFileHandle = null;
-    viewportZoom = 1; fitScale = 1; fitDisplayW = 0; fitDisplayH = 0;
+    viewportZoom = 1; fitScale = 1; fitDisplayW = 0; fitDisplayH = 0; exportW = 0; exportH = 0;
     isPanMode = false; isPanning = false;
     overwriteBtn.style.display = 'none';
     editorShell.classList.add('hidden');
@@ -701,13 +707,13 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
   // ===== HISTORY =====
   function _bindHistory() {
     undoBtn.addEventListener('click', () => {
-      History.undo(canvas, (w, h) => {
-        _afterHistoryRestore(w, h);
+      History.undo(canvas, (w, h, ew, eh) => {
+        _afterHistoryRestore(w, h, ew, eh);
       });
     });
     redoBtn.addEventListener('click', () => {
-      History.redo(canvas, (w, h) => {
-        _afterHistoryRestore(w, h);
+      History.redo(canvas, (w, h, ew, eh) => {
+        _afterHistoryRestore(w, h, ew, eh);
       });
     });
     resetBtn.addEventListener('click', () => {
@@ -860,7 +866,8 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     canvas.setWidth(fitDisplayW);
     canvas.setHeight(fitDisplayH);
     canvas.renderAll();
-    const dataURL = canvas.toDataURL(opts);
+    const multiplier = (exportW > 0 && fitDisplayW > 0) ? exportW / fitDisplayW : 1;
+    const dataURL = canvas.toDataURL({ ...opts, multiplier });
     canvas.setZoom(savedVZ);
     canvas.setWidth(savedW);
     canvas.setHeight(savedH);
@@ -868,7 +875,7 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     return dataURL;
   }
 
-  function _afterHistoryRestore(w, h) {
+  function _afterHistoryRestore(w, h, ew, eh) {
     if (w && h) {
       fitDisplayW  = w;
       fitDisplayH  = h;
@@ -877,6 +884,8 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
       canvasWrapper.style.width  = w + 'px';
       canvasWrapper.style.height = h + 'px';
     }
+    exportW = ew || w || 0;
+    exportH = eh || h || 0;
     fabricImage = _findFabricImage();
     if (fabricImage) { fitScale = fabricImage.scaleX || 1; currentZoom = fitScale; }
     Filters.applyAll(fabricImage, canvas);
