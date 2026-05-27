@@ -57,6 +57,23 @@
         <div class="pdf-file-count hidden" id="pdfFileCount">0 images selected</div>
       </div>
 
+      <!-- PDF to Images -->
+      <div class="sec-tool-section">
+        <div class="sec-tool-header">
+          <svg class="icon" viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="2" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M13 5h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          PDF to Images
+        </div>
+        <input type="file" id="p2iInput" accept="application/pdf,.pdf" hidden />
+        <button class="btn-secondary full-sec-width" id="p2iBrowseBtn">
+          <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M3 4h14M3 8h8M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Browse PDF
+        </button>
+      </div>
+
       <!-- Document Scanner -->
       <div class="sec-tool-section">
         <div class="sec-tool-header">
@@ -537,6 +554,69 @@
     </div>
   </div>
 
+  <!-- PDF TO IMAGES MODAL -->
+  <div class="modal-overlay hidden" id="p2iModal">
+    <div class="p2i-modal">
+
+      <!-- header -->
+      <div class="p2i-header">
+        <span class="p2i-title">PDF to Images</span>
+        <div class="p2i-header-actions">
+          <button class="btn-primary" id="p2iDownloadAllBtn" disabled>
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Download All (0)
+          </button>
+          <button class="btn-ghost" id="p2iCloseBtn">
+            <svg class="icon" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Close
+          </button>
+        </div>
+      </div>
+
+      <!-- controls bar -->
+      <div class="p2i-controls">
+        <div class="p2i-controls-left">
+          <div class="p2i-ctrl-item">
+            <span class="p2i-ctrl-label">Quality</span>
+            <select id="p2iDpiSelect" class="p2i-select">
+              <option value="72">72 DPI</option>
+              <option value="150" selected>150 DPI</option>
+              <option value="200">200 DPI</option>
+              <option value="300">300 DPI</option>
+            </select>
+          </div>
+          <div class="p2i-ctrl-item">
+            <span class="p2i-ctrl-label">Brightness</span>
+            <input type="range" id="p2iBrightnessSlider" min="-100" max="100" value="0" class="slider p2i-slider" />
+            <span class="panel-value" id="p2iBrightnessVal">0</span>
+          </div>
+          <div class="p2i-ctrl-item">
+            <span class="p2i-ctrl-label">Contrast</span>
+            <input type="range" id="p2iContrastSlider" min="-100" max="100" value="0" class="slider p2i-slider" />
+            <span class="panel-value" id="p2iContrastVal">0</span>
+          </div>
+          <button class="btn-ghost p2i-reset-btn" id="p2iResetBtn">Reset</button>
+        </div>
+        <div class="p2i-controls-right">
+          <button class="btn-ghost" id="p2iSelectAllBtn">Select All</button>
+          <button class="btn-ghost" id="p2iDeselectAllBtn">Deselect All</button>
+        </div>
+      </div>
+
+      <!-- progress bar -->
+      <div class="p2i-progress hidden" id="p2iProgress">
+        <div class="p2i-progress-track">
+          <div class="p2i-progress-fill" id="p2iProgressFill"></div>
+        </div>
+        <span class="p2i-progress-text" id="p2iProgressText"></span>
+      </div>
+
+      <!-- thumbnail grid -->
+      <div class="p2i-grid" id="p2iGrid"></div>
+
+    </div>
+  </div>
+
   <!-- IMAGES TO PDF MODAL -->
   <div class="modal-overlay hidden" id="pdfModal">
     <div class="pdf-modal">
@@ -759,6 +839,7 @@
   <script src="tools/draw.js"></script>
   <script src="tools/blur-brush.js"></script>
   <script src="tools/images-to-pdf.js"></script>
+  <script src="tools/pdf-to-images.js"></script>
   <script src="tools/doc-scanner.js"></script>
   <script src="editor.js"></script>
   <script type="module" src="tools/remove-bg.js"></script>
