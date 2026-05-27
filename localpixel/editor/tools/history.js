@@ -3,13 +3,17 @@ const History = (() => {
   const MAX = 30;
   let stack = [];
   let pointer = -1;
+  let _dimsGetter = null;
+
+  function setDimsGetter(fn) { _dimsGetter = fn; }
 
   function push(canvas) {
     // Discard any redo states ahead of pointer
     stack = stack.slice(0, pointer + 1);
     const state = canvas.toJSON(['selectable', 'evented', 'id']);
-    state.__w = canvas.width;
-    state.__h = canvas.height;
+    const dims  = _dimsGetter ? _dimsGetter() : { w: canvas.width, h: canvas.height };
+    state.__w = dims.w;
+    state.__h = dims.h;
     stack.push(JSON.stringify(state));
     if (stack.length > MAX) stack.shift();
     pointer = stack.length - 1;
@@ -53,5 +57,5 @@ const History = (() => {
     _notify();
   }
 
-  return { push, undo, redo, clear };
+  return { push, undo, redo, clear, setDimsGetter };
 })();

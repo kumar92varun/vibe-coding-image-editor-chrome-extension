@@ -516,7 +516,12 @@
     <footer class="status-bar">
       <span id="statusDimensions">—</span>
       <span class="status-sep">|</span>
-      <span id="statusZoom">100%</span>
+      <div class="zoom-group">
+        <button class="zoom-btn" id="zoomFitBtn" title="Fit to screen">Fit</button>
+        <input type="range" class="zoom-slider" id="zoomSlider" min="0" max="1000" value="500" title="Zoom">
+        <span id="statusZoom">100%</span>
+        <button class="zoom-btn" id="zoomOneToOneBtn" title="100% — one image pixel per screen pixel">1:1</button>
+      </div>
       <span class="status-sep">|</span>
       <span id="statusTool">No tool active</span>
     </footer>

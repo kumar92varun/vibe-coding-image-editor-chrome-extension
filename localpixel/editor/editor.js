@@ -12,6 +12,24 @@
   let hasChanges = false;
   let originalFileHandle = null;
 
+  // Viewport zoom (separate from fabricImage.scaleX which is the fit scale)
+  let viewportZoom    = 1;   // Fabric.js canvas.setZoom() value; 1 = fit-to-screen
+  let fitScale        = 1;   // fabricImage.scaleX applied by _fitImageToCanvas
+  let fitDisplayW     = 0;   // canvas pixel width at viewportZoom = 1
+  let fitDisplayH     = 0;   // canvas pixel height at viewportZoom = 1
+
+  // Pan state
+  let isPanMode       = false;  // spacebar held
+  let isPanning       = false;  // mouse is actively dragging
+  let panStartX       = 0;
+  let panStartY       = 0;
+  let panStartScrollL = 0;
+  let panStartScrollT = 0;
+  let savedDrawingMode = false;
+
+  const ZOOM_MIN_PCT = 10;
+  const ZOOM_MAX_PCT = 800;
+
   // Canvas-mode tools require explicit activate/deactivate
   const CANVAS_TOOLS = new Set(['crop', 'text', 'draw', 'shapes', 'blur']);
 
@@ -46,9 +64,13 @@
   const statusDimensions = document.getElementById('statusDimensions');
   const statusZoom       = document.getElementById('statusZoom');
   const statusTool       = document.getElementById('statusTool');
+  const zoomSlider       = document.getElementById('zoomSlider');
+  const zoomFitBtn       = document.getElementById('zoomFitBtn');
+  const zoomOneToOneBtn  = document.getElementById('zoomOneToOneBtn');
 
   // ===== INIT =====
   function init() {
+    History.setDimsGetter(() => ({ w: fitDisplayW, h: fitDisplayH }));
     _bindDropzone();
     _bindHeader();
     _bindToolButtons();
@@ -59,6 +81,7 @@
     _bindHistory();
     _bindKeyboard();
     _bindFormatSelect();
+    _bindZoomControls();
   }
 
   // ===== DROPZONE =====
@@ -191,14 +214,21 @@
 
     img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0, selectable: false, evented: false });
 
-    const displayW = Math.round(img.width  * scale);
-    const displayH = Math.round(img.height * scale);
-    canvas.setWidth(displayW);
-    canvas.setHeight(displayH);
-    canvasWrapper.style.width  = displayW + 'px';
-    canvasWrapper.style.height = displayH + 'px';
+    fitScale    = scale;
+    fitDisplayW = Math.round(img.width  * scale);
+    fitDisplayH = Math.round(img.height * scale);
+    viewportZoom = 1;
+    currentZoom  = scale;
 
-    currentZoom = scale;
+    if (canvas) canvas.setZoom(1);
+    canvas.setWidth(fitDisplayW);
+    canvas.setHeight(fitDisplayH);
+    canvasWrapper.style.width  = fitDisplayW + 'px';
+    canvasWrapper.style.height = fitDisplayH + 'px';
+    canvasArea.scrollLeft = 0;
+    canvasArea.scrollTop  = 0;
+
+    _syncZoomUI();
   }
 
   function _applyCrop(src) {
@@ -394,11 +424,20 @@
     if (!fabricImage) return;
     const newW = Math.round(fabricImage.width  * fabricImage.scaleX);
     const newH = Math.round(fabricImage.height * fabricImage.scaleY);
+
+    fitScale     = fabricImage.scaleX;
+    fitDisplayW  = newW;
+    fitDisplayH  = newH;
+    viewportZoom = 1;
+    currentZoom  = fitScale;
+
+    canvas.setZoom(1);
     canvas.setWidth(newW);
     canvas.setHeight(newH);
     canvasWrapper.style.width  = newW + 'px';
     canvasWrapper.style.height = newH + 'px';
     canvas.renderAll();
+    _syncZoomUI();
   }
 
   // ===== FILTER TOOLS =====
@@ -580,7 +619,7 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
   async function _copyImageToClipboard() {
     if (!canvas) return;
     try {
-      const dataURL = canvas.toDataURL({ format: 'png', multiplier: 1 });
+      const dataURL = _captureCanvas({ format: 'png', multiplier: 1 });
       const blob = await (await fetch(dataURL)).blob();
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       const label = copyImageBtn.querySelector('span');
@@ -597,6 +636,8 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     canvas = null; fabricImage = null; originalSrc = null;
     hasChanges = false; activeTool = null;
     originalFileHandle = null;
+    viewportZoom = 1; fitScale = 1; fitDisplayW = 0; fitDisplayH = 0;
+    isPanMode = false; isPanning = false;
     overwriteBtn.style.display = 'none';
     editorShell.classList.add('hidden');
     dropzone.classList.remove('hidden');
@@ -611,7 +652,7 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     const ext = originalFilename.split('.').pop().toLowerCase();
     const format = (ext === 'jpg' || ext === 'jpeg') ? 'jpeg' : (ext === 'webp' ? 'webp' : 'png');
     const quality = parseInt(qualitySlider.value) / 100;
-    const dataURL = canvas.toDataURL({
+    const dataURL = _captureCanvas({
       format,
       quality: format === 'png' ? 1 : quality,
       multiplier: 1,
@@ -634,7 +675,7 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
     if (!canvas) return;
     const format  = formatSelect.value;
     const quality = parseInt(qualitySlider.value) / 100;
-    const dataURL = canvas.toDataURL({
+    const dataURL = _captureCanvas({
       format,
       quality: format === 'png' ? 1 : quality,
       multiplier: 1,
@@ -661,32 +702,12 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
   function _bindHistory() {
     undoBtn.addEventListener('click', () => {
       History.undo(canvas, (w, h) => {
-        if (w && h) {
-          canvasWrapper.style.width  = w + 'px';
-          canvasWrapper.style.height = h + 'px';
-        }
-        fabricImage = _findFabricImage();
-        if (fabricImage) currentZoom = fabricImage.scaleX || 1;
-        Filters.applyAll(fabricImage, canvas);
-        ScaleTool.init(fabricImage);
-        _populateScaleInputs();
-        _updateStatus();
-        hasChanges = true;
+        _afterHistoryRestore(w, h);
       });
     });
     redoBtn.addEventListener('click', () => {
       History.redo(canvas, (w, h) => {
-        if (w && h) {
-          canvasWrapper.style.width  = w + 'px';
-          canvasWrapper.style.height = h + 'px';
-        }
-        fabricImage = _findFabricImage();
-        if (fabricImage) currentZoom = fabricImage.scaleX || 1;
-        Filters.applyAll(fabricImage, canvas);
-        ScaleTool.init(fabricImage);
-        _populateScaleInputs();
-        _updateStatus();
-        hasChanges = true;
+        _afterHistoryRestore(w, h);
       });
     });
     resetBtn.addEventListener('click', () => {
@@ -706,14 +727,39 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
   // ===== KEYBOARD =====
   function _bindKeyboard() {
     document.addEventListener('keydown', (e) => {
-      if (!canvas) return;
       const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+      const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+
+      // Spacebar pan — works even without canvas (guard below)
+      if (e.code === 'Space' && !isPanMode && !inInput && canvas) {
+        e.preventDefault();
+        isPanMode = true;
+        savedDrawingMode = canvas.isDrawingMode;
+        canvas.isDrawingMode = false;
+        canvas.selection = false;
+        canvas.defaultCursor = 'grab';
+        canvasArea.classList.add('pan-mode');
+        return;
+      }
+
+      if (!canvas) return;
+      if (inInput) return;
 
       if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
         e.preventDefault(); redoBtn.click();
       } else if (e.ctrlKey && e.key === 'z') {
         e.preventDefault(); undoBtn.click();
+      } else if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        _zoomAtCursor(_currentZoomPct() * 1.15,
+          canvasArea.clientWidth / 2, canvasArea.clientHeight / 2);
+      } else if (e.ctrlKey && e.key === '-') {
+        e.preventDefault();
+        _zoomAtCursor(_currentZoomPct() / 1.15,
+          canvasArea.clientWidth / 2, canvasArea.clientHeight / 2);
+      } else if (e.ctrlKey && e.key === '0') {
+        e.preventDefault();
+        _zoomFit();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         const obj = canvas.getActiveObject();
         if (obj && obj !== fabricImage && obj.id !== '__cropRect') {
@@ -726,13 +772,175 @@ document.getElementById('textSize').addEventListener('input',   (e) => TextTool.
         _deactivateCanvasMode();
       }
     });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' && isPanMode) {
+        isPanMode = false;
+        isPanning = false;
+        if (canvas) {
+          canvas.isDrawingMode = savedDrawingMode;
+          canvas.selection = true;
+          canvas.defaultCursor = 'default';
+        }
+        canvasArea.classList.remove('pan-mode', 'panning');
+      }
+    });
+  }
+
+  // ===== ZOOM =====
+  function _currentZoomPct() { return fitScale * viewportZoom * 100; }
+
+  function _pctToSlider(pct) {
+    const t = (Math.log(pct) - Math.log(ZOOM_MIN_PCT)) / (Math.log(ZOOM_MAX_PCT) - Math.log(ZOOM_MIN_PCT));
+    return Math.round(Math.max(0, Math.min(1000, t * 1000)));
+  }
+
+  function _sliderToPct(val) {
+    const t = val / 1000;
+    return Math.exp(Math.log(ZOOM_MIN_PCT) + t * (Math.log(ZOOM_MAX_PCT) - Math.log(ZOOM_MIN_PCT)));
+  }
+
+  function _syncZoomUI() {
+    if (!zoomSlider) return;
+    const pct = _currentZoomPct();
+    statusZoom.textContent = Math.round(pct) + '%';
+    zoomSlider.value = _pctToSlider(Math.max(ZOOM_MIN_PCT, Math.min(ZOOM_MAX_PCT, pct)));
+  }
+
+  function _applyZoomPct(pct) {
+    const clamped = Math.max(ZOOM_MIN_PCT, Math.min(ZOOM_MAX_PCT, pct));
+    viewportZoom = clamped / (fitScale * 100);
+    canvas.setZoom(viewportZoom);
+    const w = Math.round(fitDisplayW * viewportZoom);
+    const h = Math.round(fitDisplayH * viewportZoom);
+    canvas.setWidth(w);
+    canvas.setHeight(h);
+    canvasWrapper.style.width  = w + 'px';
+    canvasWrapper.style.height = h + 'px';
+    canvas.renderAll();
+    _syncZoomUI();
+  }
+
+  function _zoomAtCursor(pct, mouseX, mouseY) {
+    const oldW = canvas.width;
+    _applyZoomPct(pct);
+    const ratio = canvas.width / oldW;
+    canvasArea.scrollLeft = (canvasArea.scrollLeft + mouseX) * ratio - mouseX;
+    canvasArea.scrollTop  = (canvasArea.scrollTop  + mouseY) * ratio - mouseY;
+  }
+
+  function _zoomToCenter(pct) {
+    const cx = canvasArea.scrollLeft + canvasArea.clientWidth  / 2;
+    const cy = canvasArea.scrollTop  + canvasArea.clientHeight / 2;
+    const oldW = canvas.width;
+    _applyZoomPct(pct);
+    const ratio = canvas.width / oldW;
+    canvasArea.scrollLeft = cx * ratio - canvasArea.clientWidth  / 2;
+    canvasArea.scrollTop  = cy * ratio - canvasArea.clientHeight / 2;
+  }
+
+  function _zoomFit() {
+    viewportZoom = 1;
+    canvas.setZoom(1);
+    canvas.setWidth(fitDisplayW);
+    canvas.setHeight(fitDisplayH);
+    canvasWrapper.style.width  = fitDisplayW + 'px';
+    canvasWrapper.style.height = fitDisplayH + 'px';
+    canvas.renderAll();
+    canvasArea.scrollLeft = 0;
+    canvasArea.scrollTop  = 0;
+    _syncZoomUI();
+  }
+
+  function _captureCanvas(opts) {
+    const savedVZ = viewportZoom;
+    const savedW  = canvas.width;
+    const savedH  = canvas.height;
+    canvas.setZoom(1);
+    canvas.setWidth(fitDisplayW);
+    canvas.setHeight(fitDisplayH);
+    canvas.renderAll();
+    const dataURL = canvas.toDataURL(opts);
+    canvas.setZoom(savedVZ);
+    canvas.setWidth(savedW);
+    canvas.setHeight(savedH);
+    canvas.renderAll();
+    return dataURL;
+  }
+
+  function _afterHistoryRestore(w, h) {
+    if (w && h) {
+      fitDisplayW  = w;
+      fitDisplayH  = h;
+      viewportZoom = 1;
+      canvas.setZoom(1);
+      canvasWrapper.style.width  = w + 'px';
+      canvasWrapper.style.height = h + 'px';
+    }
+    fabricImage = _findFabricImage();
+    if (fabricImage) { fitScale = fabricImage.scaleX || 1; currentZoom = fitScale; }
+    Filters.applyAll(fabricImage, canvas);
+    ScaleTool.init(fabricImage);
+    _populateScaleInputs();
+    _updateStatus();
+    _syncZoomUI();
+    hasChanges = true;
+  }
+
+  function _bindZoomControls() {
+    zoomSlider.addEventListener('input', () => {
+      if (!canvas) return;
+      _zoomToCenter(_sliderToPct(parseInt(zoomSlider.value)));
+    });
+    zoomFitBtn.addEventListener('click', () => { if (canvas) _zoomFit(); });
+    zoomOneToOneBtn.addEventListener('click', () => { if (canvas) _zoomToCenter(100); });
+
+    canvasArea.addEventListener('wheel', (e) => {
+      if (!canvas || !e.ctrlKey) return;
+      e.preventDefault();
+      const rect = canvasArea.getBoundingClientRect();
+      _zoomAtCursor(
+        _currentZoomPct() * (e.deltaY < 0 ? 1.15 : 1 / 1.15),
+        e.clientX - rect.left,
+        e.clientY - rect.top
+      );
+    }, { passive: false });
+
+    canvasArea.addEventListener('mousedown', (e) => {
+      if (!canvas) return;
+      if ((isPanMode && e.button === 0) || e.button === 1) {
+        e.preventDefault();
+        isPanning = true;
+        panStartX = e.clientX; panStartY = e.clientY;
+        panStartScrollL = canvasArea.scrollLeft;
+        panStartScrollT = canvasArea.scrollTop;
+        canvasArea.classList.add('panning');
+      }
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      canvasArea.scrollLeft = panStartScrollL - (e.clientX - panStartX);
+      canvasArea.scrollTop  = panStartScrollT - (e.clientY - panStartY);
+    });
+    document.addEventListener('mouseup', (e) => {
+      if (!isPanning) return;
+      if (e.button === 0 || e.button === 1) {
+        isPanning = false;
+        canvasArea.classList.remove('panning');
+      }
+    });
+    // Intercept middle-mouse at capture phase to prevent browser auto-scroll
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 1 || !canvas || !canvasArea.contains(e.target)) return;
+      e.preventDefault();
+    }, true);
   }
 
   // ===== STATUS =====
   function _updateStatus() {
     if (!fabricImage) return;
     statusDimensions.textContent = `${fabricImage.width} × ${fabricImage.height}px`;
-    statusZoom.textContent = Math.round(currentZoom * 100) + '%';
+    _syncZoomUI();
   }
 
   // ===== FILTER UI RESET =====

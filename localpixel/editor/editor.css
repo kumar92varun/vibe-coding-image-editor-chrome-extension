@@ -589,6 +589,64 @@ html, body {
 
 .status-sep { color: var(--border-light); }
 
+.zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoom-btn {
+  height: 20px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.zoom-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--bg-canvas);
+}
+
+.zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.zoom-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.canvas-area.pan-mode   { cursor: grab !important; }
+.canvas-area.panning    { cursor: grabbing !important; }
+.canvas-area.pan-mode canvas,
+.canvas-area.panning  canvas { cursor: inherit !important; }
+
 /* ===== MODAL ===== */
 .modal-overlay {
   position: fixed;
